@@ -1,0 +1,279 @@
+Build a production‑grade, free‑first, glowing ChatGPT‑5‑style financial hub called “FinChat” on Replit. It must include AI chat, real‑time markets, live charts, free news/blog feeds, calculators, and a dedicated Tax & Investment section. Use the plan below exactly. Where keys are missing, implement free sources and graceful stubs so everything runs end‑to‑end.
+
+Objective
+Goal: Ship a fully functional FinChat web app with light/dark themes, glassmorphism, and neon glow, using a resilient, free‑first data strategy and clean modular code.
+
+Platform: Node.js backend + modern, lightweight frontend. Host on Replit with always‑on server.
+
+Non‑negotiables: Free‑first data sources integrated, unified data format, failover logic, SSE live updates, TradingView‑style charts, clean UI, responsive design, accurate calculators, visible disclaimers.
+
+Deliverables
+Working app: Accessible at the Replit preview URL, with all five pillars working.
+
+Clean repo: Modular file structure, readable code, comments for configuration, no secrets in client.
+
+Docs: A concise README with environment setup, run commands, routes, and how failover works.
+
+Config: .env.example listing all keys; use Replit Secrets for actual values.
+
+Tech stack
+Backend: Node.js + Express. Use Server‑Sent Events (SSE) for streaming updates.
+
+Frontend: Lightweight SPA or modular Vanilla JS with components. Keep bundle small and fast.
+
+Charts: TradingView Lightweight Charts preferred; Chart.js or ECharts only if needed for sparklines.
+
+Parsing: RSS ingestion for news.
+
+Caching: In‑memory LRU for market snapshots and news cache.
+
+Project structure
+Root:
+
+server.js
+
+package.json
+
+.env.example (no secrets)
+
+/public (static assets)
+
+index.html
+
+/assets/images, /assets/icons
+
+/css/styles.css, /css/themes.css
+
+/js/main.js (bootstraps SPA)
+
+/js/theme-toggle.js
+
+/js/stream.js (SSE client)
+
+/js/components/ (UI modules: Chat, Markets, Charts, News, Calculators, Tax)
+
+/src
+
+/services (chatService, marketService, newsService, calcService, taxService)
+
+/providers (crypto and stock provider adapters)
+
+/utils (formatters, cache, error, symbol registry)
+
+/scripts (optional: build/minify)
+
+Features and pages
+Navbar: Logo “FinChat” with animated gradient glow, tabs: Chat | Markets | Charts | News | Calculators | Tax & Investment, theme toggle.
+
+Chat Assistant: ChatGPT‑4o proxy, finance persona, streaming responses, copy button, disclaimer visible.
+
+Markets: Toggle Crypto/Stocks, search bar for symbols, grid of tickers with price, % change, volume, market cap, sparkline. Watchlist stored locally.
+
+Charts: Live, glowing chart for selected symbol; ranges 1m/5m/1h/1d; comparison overlay; smooth transitions. Use Lightweight Charts with neon/glass styling.
+
+News: Free RSS feeds aggregated, deduped, categorized (Crypto, Stocks). Card grid with image, title, snippet, time‑ago.
+
+Calculators: ROI, P/L, compound interest, crypto‑fiat conversion. Auto‑fills latest price for selected symbol.
+
+Tax & Investment: Inputs (region, asset, buy/sell dates, amount, cost basis, holding period), outputs (tax owed, net, effective rate, post‑tax projection). Scenario compare: sell now vs. hold X months.
+
+Data sources and failover
+Unified data format:
+
+Fields: symbol, name, price, change24h, volume, marketCap, timestamp (ISO), source.
+
+Currency: USD default for display; format numbers compactly.
+
+Crypto (free‑first):
+
+Primary live: Binance WebSocket (no key).
+
+Fallbacks: CoinGecko (no key) → CoinPaprika (no key) → Kraken Public (no key).
+
+History: CryptoCompare (API key; use when provided). If absent, approximate with CoinGecko where possible.
+
+Stocks (free baseline + key‑ready):
+
+Baseline (free): Yahoo Finance RSS/JSON for delayed quotes where feasible. Make stocks page functional with delayed data.
+
+Primary live (when keys provided): IEX Cloud → Finnhub.
+
+Fallbacks with key: Yahoo Finance (RapidAPI) → MarketStack → Twelve Data.
+
+News (all free):
+
+Crypto: CoinTelegraph, Bitcoinist, NewsBTC, CryptoPotato, CoinJournal, 99Bitcoins (RSS).
+
+Stocks: Yahoo Finance Headlines, Investing.com, MarketWatch Top Stories, Reuters Business, Seeking Alpha Currents (RSS).
+
+Failover rules:
+
+Crypto: Binance WS → CoinGecko → CoinPaprika → Kraken; history via CryptoCompare (keys) or CoinGecko.
+
+Stocks: IEX → Finnhub → Yahoo (RapidAPI) → MarketStack → Twelve. If no keys, use free delayed sources to keep UI working.
+
+Behavior: If a provider fails or rate‑limits, trip a circuit breaker for 60s and advance to next. Continue serving cached last‑good data with a subtle “stale” badge if needed.
+
+Backend endpoints
+Static: Serve /public as the frontend.
+
+Chat: POST /api/chat — proxies ChatGPT‑4o; requires OPENAI_API_KEY in .env. If not present, return a clear error message in UI.
+
+Markets:
+
+GET /api/markets/snapshot?kind=crypto|stocks&symbols=BTC,ETH,AAPL
+
+GET /api/markets/stream?kind=crypto|stocks&symbols=...
+
+Internally calls marketService with provider priorities and cache.
+
+Charts/history:
+
+GET /api/markets/history?kind=crypto|stocks&symbol=BTC&range=1h|1d|1w
+
+Use CryptoCompare for crypto history when key exists, else CoinGecko; use IEX/Finnhub/Yahoo for stocks depending on availability.
+
+News:
+
+GET /api/news?category=crypto|stocks|all
+
+Backend pulls/merges/dedupes RSS feeds every 10–15 minutes and returns cached JSON.
+
+Real‑time strategy
+SSE default: Push updates every 5s for crypto, 15–30s for stocks. Keep connection alive, auto‑reconnect on drop.
+
+WebSocket optional: If you implement WS for watchlists or higher frequency, keep SSE as fallback.
+
+Coalescing: For Binance trade ticks, aggregate to 1s updates for UI to avoid overrendering.
+
+Caching, rates, and resilience
+Cache: In‑memory LRU:
+
+Crypto: 15s TTL snapshots.
+
+Stocks: 30s TTL snapshots.
+
+News: 10–15 minutes TTL.
+
+Rate limiting: Respect each provider’s RPM. Batch symbols when supported. Exponential backoff with jitter on 429/5xx.
+
+Circuit breakers: After 3 consecutive failures per provider, open for 60s before retry.
+
+Health endpoint: GET /api/health returns provider status, cache hit rate, error counts.
+
+Theming and UI system
+Design language: Glassmorphism with frosted panels, subtle borders, neon glow accents. Motion kept tasteful and performant.
+
+Themes: Light and Dark via CSS variables. Persist user preference in localStorage.
+
+Accessibility: Sufficient contrast, keyboard navigation, reduced motion option.
+
+Brand: App name “FinChat” with animated gradient logo text. Accent: neon cyan/teal. Apply consistent shadows/glow.
+
+Security and compliance
+Secrets: All API keys only on server via Replit Secrets (.env). Never expose to client.
+
+CORS: Restrict to app origin.
+
+Validation: Sanitize symbol inputs; whitelist known patterns. Handle user inputs in calculators safely.
+
+Disclaimer: Prominent non‑financial advice notice in Chat, Markets, Calculators, and Tax pages.
+
+Attribution: News cards link to original sources; do not republish full text where disallowed.
+
+Environment variables
+Required now (if chat enabled): OPENAI_API_KEY
+
+Crypto (optional for history): CRYPTOCOMPARE_KEY
+
+Stocks (optional for live): YAHOO_KEY, IEX_KEY, FINNHUB_KEY, FMP_KEY, MARKETSTACK_KEY, TWELVEDATA_KEY
+
+Instructions: Provide .env.example with all of the above. If keys are absent, run in free‑first mode with fallbacks and clearly mark delayed data where applicable.
+
+Testing and acceptance criteria
+Visual: Consistent glass + glow in light/dark. No layout shifts. Smooth chart interactions.
+
+Markets:
+
+Crypto updates within 2s via WS; fallback works within 15s polling.
+
+Stocks display data even with no keys (delayed sources), upgrade to live when keys present.
+
+Charts: Live updates without flicker; range changes responsive; history loads within 1–2s.
+
+News: At least 30 fresh items combined in the last 24h from free feeds; deduped and categorized.
+
+Calculators: Accurate to two decimals; auto‑filled latest price; instant results.
+
+Tax: Correct short/long‑term classification (assume simple percentage tables per region with clear assumptions displayed).
+
+Resilience: If any provider fails, UI keeps working using next fallback or last‑good cached data; health endpoint reflects status.
+
+Run and deploy
+Scripts:
+
+dev: start server with live reload if possible.
+
+start: production server.
+
+Replit: Configure secrets, enable always‑on, serve static from /public, backend on PORT.
+
+Free feed URLs (news)
+Crypto:
+
+CoinTelegraph: https://cointelegraph.com/rss
+
+Bitcoinist: https://bitcoinist.com/feed
+
+NewsBTC: https://www.newsbtc.com/feed
+
+CryptoPotato: https://cryptopotato.com/feed
+
+CoinJournal: https://coinjournal.net/news/feed/
+
+99Bitcoins: https://99bitcoins.com/feed
+
+Stocks:
+
+Yahoo Finance Headlines: https://feeds.finance.yahoo.com/rss/2.0/headline?s=GSPC,DJI,^IXIC
+
+Investing.com: https://www.investing.com/rss/news_25.rss
+
+MarketWatch Top Stories: https://feeds.marketwatch.com/marketwatch/topstories/
+
+Reuters Business: http://feeds.reuters.com/reuters/businessNews
+
+Seeking Alpha Currents: https://seekingalpha.com/market_currents.xml
+
+Provider registry requirements
+Providers/crypto: BinanceWS (live), CoinGecko, CoinPaprika, Kraken, CryptoCompare (history).
+
+Providers/stocks: IEX, Finnhub, Yahoo (RapidAPI), MarketStack, Twelve Data.
+
+Each adapter must expose:
+
+identify: id, kind (crypto|stock), priority.
+
+capabilities: live|snapshot|history.
+
+limits: rpm.
+
+methods: fetchSnapshot(symbols), streamLive(symbols) or connect where applicable, fetchHistory(symbol, range).
+
+parse: Normalize to unified data format.
+
+Don’ts
+Don’t expose any API keys to the client or hardcode secrets.
+
+Don’t block the UI on a failing provider; fail fast, switch, and show cached data.
+
+Don’t bloat the bundle; lazy‑load chart libs and heavy modules.
+
+Don’t omit disclaimers.
+
+Final step
+When complete, provide:
+
+README with setup, keys, commands, endpoints, and known limitations.
+
+Short demo notes: which parts are live‑powered vs. delayed in free‑first mode, and how to enable live stock data by adding keys.

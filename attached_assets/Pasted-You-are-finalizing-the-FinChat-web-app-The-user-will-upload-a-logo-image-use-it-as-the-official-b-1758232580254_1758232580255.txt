@@ -1,0 +1,79 @@
+You are finalizing the FinChat web app. The user will upload a logo image — use it as the official brand logo across the entire site.
+
+---
+
+### 🎨 Logo Integration
+
+1. **Apply the uploaded logo to all necessary places:**
+   - Site header (top nav)
+   - Chat section (next to assistant name or bubble)
+   - Footer (if present)
+   - Favicon (if supported)
+
+2. **Ensure the logo is styled to match the glowing, Gen-Z aesthetic**
+   - Use subtle glow or shadow if needed
+   - Maintain high contrast in both light and dark themes
+
+---
+
+### 💬 Chat Section Cleanup
+
+3. **Make the Chat section visually beautiful and professional**
+   - Remove any unpolished or placeholder elements
+   - Clean up spacing, fonts, and layout
+   - Ensure the assistant bubble looks premium and welcoming
+   - Add subtle glowing animation when user lands on the Chat page
+
+---
+
+### 📊 Market Overview Section (Chat Page)
+
+4. **Ensure the “See More” button is clearly visible**
+   - Place it directly below the 4 coin cards
+   - Use glowing animation and hover effects
+   - When clicked, smoothly transition to the Charts section
+
+---
+
+### 🌀 UI Animation and Button Fixes
+
+5. **Fix animation glitches when switching between sections**
+   - Ensure transitions are smooth and stable
+   - Avoid flicker, layout shifts, or broken states
+
+6. **Fix all buttons with glow or animation effects**
+   - Ensure they are fully visible and styled consistently
+   - Apply hover states, active states, and smooth transitions
+   - Check buttons in Chat, Markets, Charts, News, Calculators, and Tax Tool
+
+---
+
+### 🚫 Credit Optimization
+
+7. **Do NOT run unnecessary tests or diagnostics**
+   - Avoid automated test suites that consume extra credits
+   - Only run essential checks to confirm visual and functional updates
+   - Skip any backend load tests, mock data runs, or redundant validations
+
+---
+
+### ✅ Final Instructions
+
+- Do not change any backend logic or data sources
+- Crypto APIs: Binance WS, CoinGecko, CoinPaprika, Kraken, CryptoCompare
+- Stock APIs: Yahoo Finance RapidAPI (primary), Finnhub, MarketStack, Twelve Data
+- Chat backend: OpenRouter using DeepSeek Chat v3.1 free model
+- API key: `OPENROUTER_API_KEY` from Replit Secrets
+
+---
+
+### 📦 Final Deliverables
+
+- Logo applied across the site with glowing styling
+- Chat section cleaned and visually upgraded
+- “See More” button in Market Overview is visible and functional
+- All animations and buttons polished and stable
+- No unnecessary tests run — credits preserved
+- README and `.env.example` updated if needed
+
+Proceed now to apply these changes and finalize FinChat with a premium, branded, and credit-safe experience.

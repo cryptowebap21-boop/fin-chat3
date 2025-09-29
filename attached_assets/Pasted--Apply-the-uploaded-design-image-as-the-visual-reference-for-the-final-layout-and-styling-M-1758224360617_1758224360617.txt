@@ -1,0 +1,42 @@
+**Apply the uploaded design image** as the visual reference for the final layout and styling.
+   - Match the glow, spacing, typography, and UI flow shown in the image.
+   - Ensure the site looks smooth, modern, and emotionally engaging.
+
+3. **Remove all disclaimers or warning texts** that say:
+   - “Don’t take inspiration from this”
+   - “Don’t invest money based on this site”
+   - “This site is not trustworthy”
+   - Or anything similar that undermines the credibility of the platform
+
+4. **Replace with a confident, clean footer or banner** that says:
+   - “FinChat is built for clarity, speed, and trust. All data is sourced from reliable providers.”
+   - Keep it short, elegant, and visually integrated into the design.
+
+5. **Ensure the entire experience feels beautiful and smooth**
+   - Transitions should be fluid
+   - Charts should animate cleanly
+   - Light/dark theme toggle should feel seamless
+   - All sections (Chat, Markets, Charts, News, Calculators, Tax Tool) should load quickly and feel cohesive
+
+6. **Do not change any of the data sources or architecture**
+   - Crypto APIs: Binance WS, CoinGecko, CoinPaprika, Kraken, CryptoCompare
+   - Stock APIs: Yahoo Finance RapidAPI (primary), Finnhub, MarketStack, Twelve Data
+   - News feeds: All free RSS sources already integrated
+   - Chat: ChatGPT-4o assistant
+   - Calculators and Tax Tool: Already working or partially built — finish them cleanly
+
+7. **Respect the existing theme and branding**
+   - Gen-Z aesthetic: glowing neon, glassmorphism, animated gradients
+   - Accent color: neon cyan/teal unless the uploaded image shows a different choice
+
+8. **Do not expose any API keys**
+   - All keys must be loaded from Replit Secrets using `process.env`
+
+---
+
+### ✅ Final Deliverables
+- Fully working FinChat app with the uploaded design applied
+- All disclaimers removed and replaced with a confident trust statement
+- Smooth, beautiful UI across all pages
+- README updated to reflect final build
+- `.env.example` updated with all required keys

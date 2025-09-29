@@ -1,0 +1,56 @@
+Finalize the FinChat web app with a fully optimized, beautiful, and smooth mobile experience. Every section, feature, and interaction must feel premium, responsive, and visually polished on mobile devices.
+
+---
+
+### 📱 Mobile Optimization Goals
+
+1. **Make the entire site 100% mobile-friendly**
+   - Responsive layout across all screen sizes
+   - No horizontal scroll or overflow issues
+   - Proper padding, spacing, and font scaling for small screens
+
+2. **Ensure smooth transitions and animations**
+   - Section switches (e.g., Chat → Charts → News) must animate cleanly
+   - Buttons, dropdowns, and toggles should respond instantly with no lag
+   - Avoid janky motion or layout shifts
+
+3. **Polish all UI components for mobile**
+   - Chat input field: clean, centered, animated on focus
+   - Market Overview cards: stack neatly with readable data
+   - Charts: scale properly and remain visible without clipping
+   - Calculators and Tax Tool: inputs and results must be easy to tap and read
+
+4. **Fix any mobile-specific bugs**
+   - Dropdowns or selectors that open off-screen
+   - Buttons that are hard to tap or misaligned
+   - Animations that break or stutter on mobile
+
+5. **Ensure all glow effects and styling look tasteful on mobile**
+   - Reduce excessive glow or shadow where needed
+   - Maintain clarity and contrast in both light and dark themes
+
+---
+
+### 🚫 Credit Optimization
+
+6. **Do NOT run unnecessary tests or diagnostics**
+   - Skip automated test suites that consume credits
+   - Only verify visual and functional updates manually
+
+---
+
+### ✅ Final Instructions
+
+- Do not change any backend logic or data sources
+- Do not modify desktop layout unless needed for mobile compatibility
+- Do not reintroduce disclaimers or placeholder text
+
+---
+
+### 📦 Final Deliverables
+
+- FinChat delivers a flawless, beautiful mobile experience
+- All sections responsive, smooth, and visually polished
+- No unnecessary tests run — credits preserved
+
+Proceed now to apply these changes and finalize FinChat for mobile perfection.

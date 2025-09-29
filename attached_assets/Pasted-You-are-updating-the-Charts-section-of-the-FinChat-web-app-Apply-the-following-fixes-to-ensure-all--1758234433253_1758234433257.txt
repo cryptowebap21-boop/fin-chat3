@@ -1,0 +1,50 @@
+You are updating the Charts section of the FinChat web app. Apply the following fixes to ensure all buttons and charts are fully visible, functional, and professionally styled.
+
+---
+
+### 🎯 Button Visibility & Active States
+
+1. **Fix the Crypto / Stock toggle buttons**
+   - When a user selects “Crypto” or “Stock,” the selected button must be clearly visible
+   - Do not allow the active button to appear whitened, faded, or visually broken
+   - Apply clear active state styling:
+     - Glowing border or background
+     - Smooth transition on click
+     - Consistent contrast in both light and dark themes
+
+2. **Fix the time range buttons (e.g., 1m, 5m, 1h, 1d)**
+   - Ensure each button is fully visible and styled consistently
+   - When selected, the button should show an active state (e.g., glow, highlight)
+   - Do not allow any button to appear disabled or unstyled when clicked
+
+---
+
+### 📈 Chart Visibility & Functionality
+
+3. **Ensure the chart below updates correctly when a category or time range is selected**
+   - When switching between Crypto and Stock, the chart must update instantly with relevant data
+   - When switching time ranges, the chart must reload smoothly without delay or flicker
+   - Fix any layout shifts or broken chart rendering
+
+4. **Ensure the chart is always visible**
+   - Do not allow the chart container to collapse, disappear, or render off-screen
+   - Maintain consistent height and spacing regardless of data source
+
+---
+
+### ✅ Final Instructions
+
+- Do not change any backend logic or data sources
+- Do not modify other sections of the site
+- Do not run automated tests or diagnostics — preserve credits
+
+---
+
+### 📦 Final Deliverables
+
+- Crypto / Stock toggle buttons fully visible and styled
+- Time range buttons functional and clearly active when selected
+- Chart updates correctly and remains visible at all times
+- No unnecessary tests run
+
+Proceed now to apply these changes and finalize the Charts section with clean, stable, and professional behavior.
