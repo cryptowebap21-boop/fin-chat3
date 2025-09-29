@@ -562,7 +562,7 @@ export class BitPayProvider implements CryptoProvider {
 
 export class SimpleSwapProvider implements CryptoProvider {
   id = 'simpleswap';
-  priority = 2; // High priority - truly free
+  priority = 11; // Lower priority due to limited symbols
   capabilities: ('live' | 'snapshot')[] = ['snapshot'];
   rateLimit = 600;
   
@@ -600,7 +600,7 @@ export class SimpleSwapProvider implements CryptoProvider {
 
 export class MobulaProvider implements CryptoProvider {
   id = 'mobula';
-  priority = 3;
+  priority = 12;
   capabilities: ('live' | 'snapshot')[] = ['snapshot'];
   rateLimit = 1000; // Most generous free plan
   
@@ -624,7 +624,7 @@ export class MobulaProvider implements CryptoProvider {
 
 export class CoinLayerProvider implements CryptoProvider {
   id = 'coinlayer';
-  priority = 4;
+  priority = 13;
   capabilities: ('live' | 'snapshot')[] = ['snapshot'];
   rateLimit = 1000;
   

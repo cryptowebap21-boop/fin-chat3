@@ -1,6 +1,7 @@
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
+import { healthCheckService } from "./utils/healthCheck.js";
 
 const app = express();
 app.use(express.json());
@@ -65,7 +66,16 @@ app.use((req, res, next) => {
     port,
     host: "0.0.0.0",
     reusePort: true,
-  }, () => {
+  }, async () => {
     log(`serving on port ${port}`);
+    
+    // Perform comprehensive API health check after server starts
+    setTimeout(async () => {
+      try {
+        await healthCheckService.performHealthCheck();
+      } catch (error) {
+        log(`Health check failed: ${error}`);
+      }
+    }, 2000); // Wait 2 seconds to let server fully initialize
   });
 })();

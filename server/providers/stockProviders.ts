@@ -247,7 +247,7 @@ export class MarketStackProvider implements StockProvider {
     
     return circuitBreaker.execute(async () => {
       const symbolsQuery = symbols.join(',');
-      const url = `http://api.marketstack.com/v1/eod/latest?access_key=${this.apiKey}&symbols=${symbolsQuery}`;
+      const url = `https://api.marketstack.com/v1/eod/latest?access_key=${this.apiKey}&symbols=${symbolsQuery}`;
       
       const response = await fetch(url);
       if (!response.ok) {
@@ -606,7 +606,7 @@ export class WorldTradingDataProvider implements StockProvider {
 
 export class QuandlFreeProvider implements StockProvider {
   id = 'quandl';
-  priority = 8;
+  priority = 11;
   capabilities: ('live' | 'snapshot')[] = ['snapshot'];
   rateLimit = 300; // Free tier
   requiresKey = false;
@@ -650,7 +650,7 @@ export class QuandlFreeProvider implements StockProvider {
 
 export class EODHDFreeProvider implements StockProvider {
   id = 'eodhd';
-  priority = 9;
+  priority = 12;
   capabilities: ('live' | 'snapshot')[] = ['snapshot'];
   rateLimit = 20; // 20 requests per day free
   requiresKey = false;
@@ -694,7 +694,7 @@ export class EODHDFreeProvider implements StockProvider {
 
 export class StooqProvider implements StockProvider {
   id = 'stooq';
-  priority = 10;
+  priority = 13;
   capabilities: ('live' | 'snapshot')[] = ['snapshot'];
   rateLimit = 1000; // Very generous
   requiresKey = false;

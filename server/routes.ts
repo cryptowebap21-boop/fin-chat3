@@ -7,6 +7,7 @@ import { NewsService } from "./services/newsService.js";
 import { ChatService } from "./services/chatService.js";
 import { CalculatorService } from "./services/calculatorService.js";
 import { chatMessageSchema, calculatorInputSchema, taxCalculationSchema } from "@shared/schema";
+import { healthCheckService } from "./utils/healthCheck.js";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   const httpServer = createServer(app);
@@ -398,6 +399,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ 
         error: 'Failed to get provider stats',
         message: error instanceof Error ? error.message : 'Unknown error' 
+      });
+    }
+  });
+
+  // Comprehensive API Health Check endpoint  
+  app.get('/api/health/comprehensive', async (req, res) => {
+    try {
+      const healthReport = await healthCheckService.performHealthCheck(marketService);
+      res.json(healthReport);
+    } catch (error) {
+      console.error('Comprehensive health check error:', error);
+      res.status(500).json({ 
+        error: 'Failed to perform comprehensive health check',
+        message: error instanceof Error ? error.message : 'Unknown error',
+        timestamp: new Date().toISOString()
       });
     }
   });
