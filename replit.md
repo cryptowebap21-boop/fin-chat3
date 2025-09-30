@@ -62,7 +62,7 @@ Preferred communication style: Simple, everyday language.
 - Alpha Vantage as stock fallback provider
 
 **AI Services**
-- OpenAI API for GPT-powered financial chat assistant (requires API key)
+- OpenRouter API with DeepSeek Chat v3.1 for AI-powered financial chat assistant (requires OPENROUTER_API_KEY)
 - Custom financial prompt engineering for domain-specific responses
 
 **Database Services**
@@ -90,3 +90,31 @@ Preferred communication style: Simple, everyday language.
 - Date-fns for date manipulation and formatting
 - WebSocket libraries for real-time communication
 - LRU cache implementation for memory management
+
+## Replit Environment Setup
+
+**Current Configuration (September 30, 2025)**
+- Successfully configured for Replit environment
+- Server running on port 5000 (frontend and backend on same port)
+- Vite dev server configured with `allowedHosts: true` for Replit proxy compatibility
+- WebSocket and SSE real-time connections configured
+- Build system: Vite + esbuild for production builds
+- Deployment target: autoscale (for stateless web application)
+
+**Working Features**
+- 6 active data providers (coinpaprika, coincap, coinbase, bitpay, polygon, fmp)
+- News aggregation (134 articles cached on startup)
+- Real-time market data streaming via SSE
+- Glassmorphism UI with light/dark theme
+- Responsive design and navigation
+
+**Known Limitations**
+- Binance WebSocket blocked (451 error) - fallback providers active
+- Some RSS feeds blocked by network filters - working providers compensate
+- AI chat requires OPENROUTER_API_KEY to be set in Replit Secrets
+
+**To Enable AI Chat**
+1. Visit https://openrouter.ai/keys
+2. Create a free account and generate API key
+3. Add to Replit Secrets: key=`OPENROUTER_API_KEY`, value=your_api_key
+4. Restart the application
