@@ -2,6 +2,7 @@ import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { healthCheckService } from "./utils/healthCheck.js";
+import { marketDataWorker } from "./workers/marketDataWorker.js";
 
 const app = express();
 app.use(express.json());
@@ -69,6 +70,10 @@ app.use((req, res, next) => {
   }, async () => {
     log(`serving on port ${port}`);
     
+    // Start background market data worker
+    log('Starting background market data worker...');
+    marketDataWorker.start();
+    
     // Perform comprehensive API health check after server starts
     setTimeout(async () => {
       try {
@@ -77,5 +82,15 @@ app.use((req, res, next) => {
         log(`Health check failed: ${error}`);
       }
     }, 2000); // Wait 2 seconds to let server fully initialize
+  });
+  
+  // Graceful shutdown
+  process.on('SIGTERM', () => {
+    log('SIGTERM received, shutting down gracefully...');
+    marketDataWorker.stop();
+    server.close(() => {
+      log('Server closed');
+      process.exit(0);
+    });
   });
 })();

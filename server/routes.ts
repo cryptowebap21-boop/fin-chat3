@@ -2,24 +2,22 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { WebSocketServer, WebSocket } from "ws";
 import { storage } from "./storage.js";
-import { MarketService } from "./services/marketService.js";
+import { marketDataWorker } from "./workers/marketDataWorker.js";
+import { marketCache } from "./utils/cache.js";
 import { NewsService } from "./services/newsService.js";
 import { ChatService } from "./services/chatService.js";
 import { CalculatorService } from "./services/calculatorService.js";
 import { chatMessageSchema, calculatorInputSchema, taxCalculationSchema } from "@shared/schema";
 import { healthCheckService } from "./utils/healthCheck.js";
+import { type UnifiedMarketData } from "@shared/schema";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   const httpServer = createServer(app);
   
-  // Initialize services
-  const marketService = new MarketService();
+  // Initialize services (no market service - using worker instead)
   const newsService = new NewsService();
   const chatService = new ChatService();
   const calculatorService = new CalculatorService();
-  
-  // Initialize live market streams
-  await marketService.initializeLiveStreams();
   
   // WebSocket server for real-time data
   const wss = new WebSocketServer({ server: httpServer, path: '/ws' });
@@ -50,16 +48,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Broadcast market updates to WebSocket clients
-  function broadcastMarketUpdate(data: any) {
+  function broadcastMarketUpdate(data: UnifiedMarketData[], kind: 'crypto' | 'stock') {
+    const message = JSON.stringify({
+      type: 'market_update',
+      kind,
+      data,
+      timestamp: new Date().toISOString()
+    });
+    
     wss.clients.forEach((client) => {
       if (client.readyState === WebSocket.OPEN) {
-        client.send(JSON.stringify({
-          type: 'market_update',
-          data
-        }));
+        client.send(message);
       }
     });
   }
+  
+  // Register callback with worker to broadcast updates when data is refreshed
+  marketDataWorker.onUpdate((data: UnifiedMarketData[], kind: 'crypto' | 'stock') => {
+    // Broadcast via WebSocket
+    broadcastMarketUpdate(data, kind);
+    
+    // Broadcast via SSE
+    const message = `event: market_update\ndata: ${JSON.stringify({ kind, data, timestamp: new Date().toISOString() })}\n\n`;
+    sseConnections.forEach((connection: any) => {
+      try {
+        if (connection.kind === kind || !connection.kind) {
+          connection.res.write(message);
+        }
+      } catch (error) {
+        console.error('SSE broadcast error:', error);
+        sseConnections.delete(connection);
+      }
+    });
+  });
   
   // Chat Assistant API
   app.post('/api/chat', async (req, res) => {
@@ -124,7 +145,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  // Markets API
+  // Markets API - Serves data ONLY from cache/database (backend-first architecture)
   app.get('/api/markets/snapshot', async (req, res) => {
     try {
       const { kind = 'crypto', symbols } = req.query;
@@ -133,14 +154,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: 'Kind must be "crypto" or "stock"' });
       }
       
+      const defaultCryptoSymbols = ['BTC', 'ETH', 'SOL', 'ADA', 'DOT', 'MATIC', 'AVAX', 'LINK', 'UNI', 'LTC'];
+      const defaultStockSymbols = ['AAPL', 'GOOGL', 'MSFT', 'AMZN', 'TSLA', 'META', 'NVDA', 'NFLX', 'SPY', 'QQQ'];
+      
       let symbolList: string[];
       if (symbols && typeof symbols === 'string') {
         symbolList = symbols.split(',').map(s => s.trim().toUpperCase());
       } else {
-        symbolList = marketService.getDefaultSymbols(kind as 'crypto' | 'stock');
+        symbolList = kind === 'crypto' ? defaultCryptoSymbols : defaultStockSymbols;
       }
       
-      const data = await marketService.getMarketSnapshot(kind as 'crypto' | 'stock', symbolList);
+      // Try cache first (updated by background worker)
+      const cacheKey = `${kind}-${symbolList.join(',')}-snapshot`;
+      let data = marketCache.get(cacheKey);
+      
+      if (!data || !Array.isArray(data)) {
+        // Fallback to database if cache miss
+        const dbData = await storage.getMarketDataBatch(symbolList, kind as 'crypto' | 'stock');
+        data = dbData.map(item => ({
+          symbol: item.symbol,
+          name: item.name,
+          price: parseFloat(item.price),
+          change24h: item.change24h ? parseFloat(item.change24h) : undefined,
+          volume: item.volume ? parseFloat(item.volume) : undefined,
+          marketCap: item.marketCap ? parseFloat(item.marketCap) : undefined,
+          timestamp: item.timestamp.toISOString(),
+          source: item.source,
+          kind: item.kind as 'crypto' | 'stock'
+        }));
+      }
+      
       res.json(data);
       
     } catch (error) {
@@ -150,6 +193,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Server-Sent Events for real-time market data
+  // NOTE: Updates are now pushed by the background worker, not by this endpoint
   app.get('/api/markets/stream', (req, res) => {
     const { kind = 'crypto', symbols } = req.query;
     
@@ -163,60 +207,82 @@ export async function registerRoutes(app: Express): Promise<Server> {
     const connection = { res, kind, symbols };
     sseConnections.add(connection);
     
-    // Send initial data
+    // Send initial connection confirmation
     res.write('event: connected\n');
-    res.write('data: {"status":"connected"}\n\n');
+    res.write(`data: ${JSON.stringify({ status: 'connected', timestamp: new Date().toISOString() })}\n\n`);
+    
+    // Send current data immediately from cache
+    const defaultCryptoSymbols = ['BTC', 'ETH', 'SOL', 'ADA', 'DOT', 'MATIC', 'AVAX', 'LINK', 'UNI', 'LTC'];
+    const defaultStockSymbols = ['AAPL', 'GOOGL', 'MSFT', 'AMZN', 'TSLA', 'META', 'NVDA', 'NFLX', 'SPY', 'QQQ'];
+    
+    let symbolList: string[];
+    if (symbols && typeof symbols === 'string') {
+      symbolList = symbols.split(',').map((s: string) => s.trim().toUpperCase());
+    } else {
+      symbolList = kind === 'crypto' ? defaultCryptoSymbols : defaultStockSymbols;
+    }
+    
+    const cacheKey = `${kind}-${symbolList.join(',')}-snapshot`;
+    const cachedData = marketCache.get(cacheKey);
+    
+    if (cachedData) {
+      res.write('event: market_update\n');
+      res.write(`data: ${JSON.stringify({ kind, data: cachedData, timestamp: new Date().toISOString() })}\n\n`);
+    }
     
     req.on('close', () => {
       sseConnections.delete(connection);
     });
   });
   
-  // Periodic market data updates via SSE
-  setInterval(async () => {
-    for (const connection of Array.from(sseConnections)) {
-      try {
-        const { res, kind, symbols } = connection;
-        
-        let symbolList: string[];
-        if (symbols && typeof symbols === 'string') {
-          symbolList = symbols.split(',').map((s: string) => s.trim().toUpperCase());
-        } else {
-          symbolList = marketService.getDefaultSymbols(kind as 'crypto' | 'stock');
-        }
-        
-        const data = await marketService.getMarketSnapshot(kind as 'crypto' | 'stock', symbolList);
-        
-        res.write('event: market_update\n');
-        res.write(`data: ${JSON.stringify(data)}\n\n`);
-        
-      } catch (error) {
-        console.error('SSE update error:', error);
-        sseConnections.delete(connection);
-      }
-    }
-  }, 5000); // Update every 5 seconds for crypto, 15 seconds for stocks
-  
-  // Market history API
+  // Market history API - Returns latest price data
+  // NOTE: Historical data (1m, 1h, 1d ranges) not supported in this version
+  // Only returns latest real-time price
   app.get('/api/markets/history', async (req, res) => {
     try {
-      const { kind = 'crypto', symbol, range = '1d' } = req.query;
+      const { kind = 'crypto', symbol } = req.query;
       
       if (!symbol || typeof symbol !== 'string') {
         return res.status(400).json({ error: 'Symbol is required' });
       }
       
-      const data = await marketService.getMarketHistory(
-        kind as 'crypto' | 'stock', 
-        symbol.toUpperCase(), 
-        range as string
-      );
+      // Return latest price data from cache/database
+      const symbolUpper = symbol.toUpperCase();
+      const cacheKey = `${kind}-${symbolUpper}-snapshot`;
+      let data = marketCache.get(cacheKey);
+      
+      if (!data) {
+        // Fallback to database
+        const dbData = await storage.getMarketData(symbolUpper, kind as 'crypto' | 'stock');
+        if (dbData) {
+          data = [{
+            timestamp: dbData.timestamp.getTime(),
+            close: parseFloat(dbData.price),
+            open: parseFloat(dbData.price),
+            high: parseFloat(dbData.price),
+            low: parseFloat(dbData.price),
+            volume: dbData.volume ? parseFloat(dbData.volume) : undefined
+          }];
+        } else {
+          data = [];
+        }
+      } else if (Array.isArray(data)) {
+        // Convert UnifiedMarketData to chart data format
+        data = data.filter((item: any) => item.symbol === symbolUpper).map((item: any) => ({
+          timestamp: new Date(item.timestamp).getTime(),
+          close: item.price,
+          open: item.price,
+          high: item.price,
+          low: item.price,
+          volume: item.volume
+        }));
+      }
       
       res.json(data);
       
     } catch (error) {
       console.error('Market history error:', error);
-      res.status(500).json({ error: 'Failed to fetch market history' });
+      res.status(500).json({ error: 'Failed to fetch market data' });
     }
   });
   
@@ -287,14 +353,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const inputs = req.body;
       
-      // Get current market prices for conversion
+      // Get current market prices for conversion from cache/database
       const cryptoSymbols = ['BTC', 'ETH', 'SOL', 'ADA'];
-      const marketData = await marketService.getMarketSnapshot('crypto', cryptoSymbols);
+      const cacheKey = `crypto-${cryptoSymbols.join(',')}-snapshot`;
+      let marketData = marketCache.get(cacheKey);
+      
+      if (!marketData || !Array.isArray(marketData)) {
+        const dbData = await storage.getMarketDataBatch(cryptoSymbols, 'crypto');
+        marketData = dbData.map(item => ({
+          symbol: item.symbol,
+          price: parseFloat(item.price)
+        }));
+      }
       
       const prices: Record<string, number> = { USD: 1 };
-      marketData.forEach(item => {
-        prices[item.symbol] = item.price;
-      });
+      if (Array.isArray(marketData)) {
+        marketData.forEach((item: any) => {
+          prices[item.symbol] = item.price;
+        });
+      }
       
       const result = calculatorService.convertCurrency(inputs, prices);
       res.json(result);
@@ -348,11 +425,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Health check endpoint
   app.get('/api/health', async (req, res) => {
     try {
+      const workerStatus = marketDataWorker.getStatus();
       const health = {
         status: 'healthy',
         timestamp: new Date().toISOString(),
         services: {
-          market: marketService.getServiceHealth(),
+          worker: workerStatus,
           news: newsService.getServiceHealth(),
           chat: chatService.getServiceHealth(),
           calculator: calculatorService.getServiceHealth()
@@ -360,7 +438,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         connections: {
           websocket: wss.clients.size,
           sse: sseConnections.size
-        }
+        },
+        cache: marketCache.getStats()
       };
       
       res.json(health);
@@ -375,22 +454,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Provider stats endpoint for debugging and monitoring
   app.get('/api/providers/stats', async (req, res) => {
     try {
-      // Access registries through market service
-      const cryptoStats = marketService['cryptoRegistry']?.getProviderStats() || [];
-      const stockStats = marketService['stockRegistry']?.getProviderStats() || [];
-      
+      const workerStatus = marketDataWorker.getStatus();
       const providerStats = {
         timestamp: new Date().toISOString(),
-        crypto: {
-          providers: cryptoStats,
-          totalProviders: cryptoStats.length,
-          activeProviders: cryptoStats.filter((p: any) => p.circuitBreakerState === 'closed').length
-        },
-        stock: {
-          providers: stockStats,
-          totalProviders: stockStats.length,
-          activeProviders: stockStats.filter((p: any) => p.circuitBreakerState === 'closed').length
-        }
+        worker: workerStatus,
+        message: 'Data is now fetched by background worker at fixed intervals'
       };
       
       res.json(providerStats);
@@ -406,7 +474,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Comprehensive API Health Check endpoint  
   app.get('/api/health/comprehensive', async (req, res) => {
     try {
-      const healthReport = await healthCheckService.performHealthCheck(marketService);
+      const workerStatus = marketDataWorker.getStatus();
+      const healthReport = {
+        timestamp: new Date().toISOString(),
+        worker: workerStatus,
+        cache: marketCache.getStats(),
+        connections: {
+          websocket: wss.clients.size,
+          sse: sseConnections.size
+        },
+        services: {
+          news: newsService.getServiceHealth(),
+          chat: chatService.getServiceHealth(),
+          calculator: calculatorService.getServiceHealth()
+        }
+      };
       res.json(healthReport);
     } catch (error) {
       console.error('Comprehensive health check error:', error);
