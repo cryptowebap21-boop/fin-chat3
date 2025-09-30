@@ -23,54 +23,43 @@ interface MarketData {
 
 export default function TradingChart() {
   const [selectedSymbol, setSelectedSymbol] = useState('BTC');
-  const [selectedRange, setSelectedRange] = useState('1d');
   const [selectedKind, setSelectedKind] = useState<'crypto' | 'stock'>('crypto');
   const [compareSymbols, setCompareSymbols] = useState<string[]>([]);
   const [isVolumeLoading, setIsVolumeLoading] = useState(false);
   const [volumeError, setVolumeError] = useState<string | null>(null);
+  const [lastUpdated, setLastUpdated] = useState<string>('');
   const chartContainerRef = useRef<HTMLDivElement>(null);
 
   const symbols = selectedKind === 'crypto' 
     ? ['BTC', 'ETH', 'SOL', 'ADA', 'DOT', 'MATIC']
     : ['AAPL', 'GOOGL', 'MSFT', 'AMZN', 'TSLA', 'META'];
 
-  const ranges = [
-    { id: '1m', label: '1M' },
-    { id: '5m', label: '5M' },
-    { id: '1h', label: '1H' },
-    { id: '1d', label: '1D' },
-    { id: '1w', label: '1W' },
-  ];
-
-  // Fetch current price data with optimized caching
+  // Fetch current price data - Real-time updates from backend
   const { data: marketData } = useQuery({
     queryKey: [`/api/markets/snapshot?kind=${selectedKind}&symbols=${selectedSymbol}`],
-    refetchInterval: 15000,
-    staleTime: 10000, // Consider data fresh for 10 seconds
-    retry: 0, // Don't retry failed requests to avoid long waits
-    refetchOnWindowFocus: false, // Don't refetch when user returns to tab
+    refetchInterval: 5000, // Poll every 5 seconds for updates
+    staleTime: 3000, // Consider data fresh for 3 seconds
+    retry: 0,
+    refetchOnWindowFocus: false,
   });
 
-  // Fetch chart history data with optimized caching  
+  // Fetch chart data for visualization (latest price only, no history)
   const { data: chartData, isLoading, isFetching } = useQuery({
-    queryKey: [`/api/markets/history?kind=${selectedKind}&symbol=${selectedSymbol}&range=${selectedRange}`],
-    refetchInterval: 30000,
-    staleTime: 300000, // Consider history data fresh for 5 minutes
-    retry: 0, // Don't retry failed requests
-    refetchOnWindowFocus: false, // Don't refetch when user returns to tab
-  });
-
-  // Fetch compare data for overlay symbols
-  const { data: compareData } = useQuery({
-    queryKey: [`/api/markets/history?kind=${selectedKind}&symbol=${compareSymbols.join(',')}&range=${selectedRange}`],
-    enabled: compareSymbols.length > 0,
-    refetchInterval: 30000,
-    staleTime: 300000,
+    queryKey: [`/api/markets/history?kind=${selectedKind}&symbol=${selectedSymbol}`],
+    refetchInterval: 5000, // Match backend worker interval
+    staleTime: 3000,
     retry: 0,
     refetchOnWindowFocus: false,
   });
 
   const currentData = (Array.isArray(marketData) && marketData.length > 0) ? marketData[0] as MarketData : undefined;
+  
+  // Update timestamp when data changes
+  useEffect(() => {
+    if (currentData) {
+      setLastUpdated(new Date().toLocaleTimeString());
+    }
+  }, [currentData]);
 
   // Update selected symbol when switching between crypto/stock to prevent dropdown from disappearing
   useEffect(() => {
@@ -100,9 +89,9 @@ export default function TradingChart() {
 
   useEffect(() => {
     if (chartData && Array.isArray(chartData) && chartContainerRef.current) {
-      renderChart(chartData, compareData);
+      renderChart(chartData);
     }
-  }, [chartData, compareData, selectedRange, selectedKind, selectedSymbol]);
+  }, [chartData, selectedKind, selectedSymbol]);
 
   // Functions for compare functionality
   const addCompareSymbol = (symbol: string) => {
@@ -115,7 +104,7 @@ export default function TradingChart() {
     setCompareSymbols(compareSymbols.filter(s => s !== symbol));
   };
 
-  const renderChart = (data: ChartData[], compareData?: any) => {
+  const renderChart = (data: ChartData[]) => {
     const container = chartContainerRef.current;
     if (!container) return;
 
@@ -272,54 +261,42 @@ export default function TradingChart() {
             </Select>
           </div>
 
-          {/* Price Display */}
-          <div className="flex items-center justify-center sm:justify-start space-x-2 sm:space-x-3">
-            {currentData ? (
-              <>
-                <div className="text-lg sm:text-xl lg:text-2xl font-bold text-foreground" data-testid="chart-price">
-                  {formatPrice(currentData.price)}
-                </div>
-                {currentData.change24h !== undefined && (
-                  <div 
-                    className={`font-medium px-2 py-1 rounded-full text-xs sm:text-sm ${
-                      currentData.change24h >= 0 
-                        ? 'text-green-400 bg-green-400/20' 
-                        : 'text-red-400 bg-red-400/20'
-                    }`}
-                    data-testid="chart-change"
-                  >
-                    {formatPercentage(currentData.change24h)}
+          {/* Price Display with Last Updated Timestamp */}
+          <div className="flex flex-col sm:flex-row items-center sm:items-start justify-center sm:justify-start space-y-2 sm:space-y-0 sm:space-x-4">
+            <div className="flex items-center space-x-2 sm:space-x-3">
+              {currentData ? (
+                <>
+                  <div className="text-lg sm:text-xl lg:text-2xl font-bold text-foreground" data-testid="chart-price">
+                    {formatPrice(currentData.price)}
                   </div>
-                )}
-              </>
-            ) : (
-              <div className="flex items-center space-x-2">
-                <div className="w-20 sm:w-24 h-6 sm:h-8 bg-muted/50 rounded-md animate-pulse"></div>
-                <div className="w-12 sm:w-16 h-5 sm:h-6 bg-muted/30 rounded-md animate-pulse"></div>
+                  {currentData.change24h !== undefined && (
+                    <div 
+                      className={`font-medium px-2 py-1 rounded-full text-xs sm:text-sm ${
+                        currentData.change24h >= 0 
+                          ? 'text-green-400 bg-green-400/20' 
+                          : 'text-red-400 bg-red-400/20'
+                      }`}
+                      data-testid="chart-change"
+                    >
+                      {formatPercentage(currentData.change24h)}
+                    </div>
+                  )}
+                </>
+              ) : (
+                <div className="flex items-center space-x-2">
+                  <div className="w-20 sm:w-24 h-6 sm:h-8 bg-muted/50 rounded-md animate-pulse"></div>
+                  <div className="w-12 sm:w-16 h-5 sm:h-6 bg-muted/30 rounded-md animate-pulse"></div>
+                </div>
+              )}
+            </div>
+            
+            {/* Last Updated Timestamp */}
+            {lastUpdated && (
+              <div className="flex items-center space-x-2 text-xs text-muted-foreground">
+                <i className="fas fa-clock"></i>
+                <span>Last updated: {lastUpdated}</span>
               </div>
             )}
-          </div>
-
-          {/* Time Range Buttons */}
-          <div className="flex justify-center">
-            <div className="flex space-x-0.5 sm:space-x-1 bg-muted/30 rounded-lg p-0.5 sm:p-1 border border-primary/30 shadow-sm overflow-x-auto max-w-full">
-              {ranges.map((range) => (
-                <Button
-                  key={range.id}
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setSelectedRange(range.id)}
-                  className={`px-2 py-1.5 sm:px-3 sm:py-2 lg:px-4 lg:py-2 font-medium text-xs sm:text-sm whitespace-nowrap flex-shrink-0 ${
-                    selectedRange === range.id
-                      ? 'bg-primary/20 text-primary shadow-lg border-2 border-primary/60 font-bold'
-                      : 'text-foreground hover:text-primary hover:bg-primary/15 border border-transparent'
-                  }`}
-                  data-testid={`range-${range.id}`}
-                >
-                  {range.label}
-                </Button>
-              ))}
-            </div>
           </div>
         </div>
       </div>
